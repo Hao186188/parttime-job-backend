@@ -101,20 +101,20 @@ const jobSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
-// 🔍 Tạo index để hỗ trợ tìm kiếm
+// 🔍 Index for search
 jobSchema.index({
   title: 'text',
   description: 'text',
   requirements: 'text'
 });
 
-// ⚙️ Virtual: kiểm tra hết hạn
+// ⚙️ Virtual: Check if job expired
 jobSchema.virtual('isExpired').get(function () {
   if (!this.applicationDeadline) return false;
   return new Date() > this.applicationDeadline;
 });
 
-// 📊 Cập nhật số lượng ứng tuyển
+// 📊 Update application count
 jobSchema.methods.updateApplicationCount = async function () {
   const Application = mongoose.model('Application');
   const count = await Application.countDocuments({ job: this._id });
@@ -122,5 +122,4 @@ jobSchema.methods.updateApplicationCount = async function () {
   await this.save();
 };
 
-const Job = mongoose.model('Job', jobSchema);
-export default Job;
+export default mongoose.model('Job', jobSchema);

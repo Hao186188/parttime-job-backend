@@ -1,11 +1,11 @@
-const User = require('../models/User');
-const Application = require('../models/Application');
-const Job = require('../models/Job');
+import User from '../models/User.js';
+import Application from '../models/Application.js';
+import Job from '../models/Job.js';
 
 // @desc    Get user profile
 // @route   GET /api/users/profile/:id?
 // @access  Private
-const getUserProfile = async (req, res) => {
+export const getUserProfile = async (req, res) => {
   try {
     const userId = req.params.id || req.user.id;
 
@@ -71,7 +71,7 @@ const getUserProfile = async (req, res) => {
 // @desc    Update user profile
 // @route   PUT /api/users/profile
 // @access  Private
-const updateUserProfile = async (req, res) => {
+export const updateUserProfile = async (req, res) => {
   try {
     const {
       name,
@@ -98,17 +98,15 @@ const updateUserProfile = async (req, res) => {
 
     // Remove undefined fields
     Object.keys(updateData).forEach(key => {
-      if (updateData[key] === undefined) {
-        delete updateData[key];
-      }
+      if (updateData[key] === undefined) delete updateData[key];
     });
 
-    // Handle skills array - ensure it's properly formatted
+    // Handle skills array
     if (updateData.skills && Array.isArray(updateData.skills)) {
       updateData.skills = updateData.skills
         .map(skill => skill.trim())
         .filter(skill => skill.length > 0 && skill.length <= 50)
-        .slice(0, 20); // Limit to 20 skills
+        .slice(0, 20);
     }
 
     const user = await User.findByIdAndUpdate(
@@ -138,7 +136,7 @@ const updateUserProfile = async (req, res) => {
 // @desc    Upload resume
 // @route   POST /api/users/upload-resume
 // @access  Private (Student)
-const uploadResume = async (req, res) => {
+export const uploadResume = async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({
@@ -172,7 +170,7 @@ const uploadResume = async (req, res) => {
 // @desc    Upload avatar
 // @route   POST /api/users/upload-avatar
 // @access  Private
-const uploadAvatar = async (req, res) => {
+export const uploadAvatar = async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({
@@ -206,10 +204,10 @@ const uploadAvatar = async (req, res) => {
 // @desc    Get saved jobs
 // @route   GET /api/users/saved-jobs
 // @access  Private (Student)
-const getSavedJobs = async (req, res) => {
+export const getSavedJobs = async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select('savedJobs');
-    
+
     if (!user.savedJobs || user.savedJobs.length === 0) {
       return res.json({
         success: true,
@@ -242,11 +240,10 @@ const getSavedJobs = async (req, res) => {
 // @desc    Save job
 // @route   POST /api/users/saved-jobs/:jobId
 // @access  Private (Student)
-const saveJob = async (req, res) => {
+export const saveJob = async (req, res) => {
   try {
     const { jobId } = req.params;
 
-    // Check if job exists and is active
     const job = await Job.findOne({ _id: jobId, isActive: true });
     if (!job) {
       return res.status(404).json({
@@ -256,8 +253,7 @@ const saveJob = async (req, res) => {
     }
 
     const user = await User.findById(req.user.id);
-    
-    // Check if job is already saved
+
     if (user.savedJobs.includes(jobId)) {
       return res.status(400).json({
         success: false,
@@ -265,7 +261,6 @@ const saveJob = async (req, res) => {
       });
     }
 
-    // Add job to saved jobs (limit to 50 jobs)
     user.savedJobs.push(jobId);
     if (user.savedJobs.length > 50) {
       user.savedJobs = user.savedJobs.slice(-50);
@@ -291,13 +286,12 @@ const saveJob = async (req, res) => {
 // @desc    Remove saved job
 // @route   DELETE /api/users/saved-jobs/:jobId
 // @access  Private (Student)
-const removeSavedJob = async (req, res) => {
+export const removeSavedJob = async (req, res) => {
   try {
     const { jobId } = req.params;
 
     const user = await User.findById(req.user.id);
-    
-    // Remove job from saved jobs
+
     user.savedJobs = user.savedJobs.filter(id => id.toString() !== jobId);
     await user.save();
 
@@ -316,24 +310,19 @@ const removeSavedJob = async (req, res) => {
   }
 };
 
-// @desc    Get recommended jobs for student
+// @desc    Get recommended jobs
 // @route   GET /api/users/recommended-jobs
 // @access  Private (Student)
-const getRecommendedJobs = async (req, res) => {
+export const getRecommendedJobs = async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
-    
-    // Simple recommendation based on student's major and skills
+
     const recommendedJobs = await Job.find({
       isActive: true,
       $or: [
         { category: { $in: user.skills || [] } },
         { skills: { $in: user.skills || [] } },
-        { 
-          $text: { 
-            $search: user.major || user.school || '' 
-          } 
-        }
+        { $text: { $search: user.major || user.school || '' } }
       ]
     })
       .populate('company', 'name logo industry')
@@ -354,15 +343,4 @@ const getRecommendedJobs = async (req, res) => {
       error: error.message
     });
   }
-};
-
-module.exports = {
-  getUserProfile,
-  updateUserProfile,
-  uploadResume,
-  uploadAvatar,
-  getSavedJobs,
-  saveJob,
-  removeSavedJob,
-  getRecommendedJobs
 };

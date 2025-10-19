@@ -1,12 +1,12 @@
-const User = require('../models/User');
-const Company = require('../models/Company');
-const { generateToken } = require('../utils/generateToken');
-const { validationResult } = require('express-validator');
+import User from '../models/User.js';
+import Company from '../models/Company.js';
+import { generateToken } from '../utils/generateToken.js';
+import { validationResult } from 'express-validator';
 
 // @desc    Register user
 // @route   POST /api/auth/register
 // @access  Public
-const register = async (req, res) => {
+export const register = async (req, res) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -53,7 +53,7 @@ const register = async (req, res) => {
       phone,
       userType,
       company: company ? company._id : undefined,
-      ...(userType === 'student' && studentInfo)
+      ...(userType === 'student' ? studentInfo : {})
     });
 
     // Generate token
@@ -66,10 +66,7 @@ const register = async (req, res) => {
     res.status(201).json({
       success: true,
       message: 'User registered successfully',
-      data: {
-        user,
-        token
-      }
+      data: { user, token }
     });
 
   } catch (error) {
@@ -85,7 +82,7 @@ const register = async (req, res) => {
 // @desc    Login user
 // @route   POST /api/auth/login
 // @access  Public
-const login = async (req, res) => {
+export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
@@ -130,16 +127,10 @@ const login = async (req, res) => {
     user.lastLogin = new Date();
     await user.save();
 
-    // Remove password from response
-    user.password = undefined;
-
     res.json({
       success: true,
       message: 'Login successful',
-      data: {
-        user,
-        token
-      }
+      data: { user, token }
     });
 
   } catch (error) {
@@ -155,7 +146,7 @@ const login = async (req, res) => {
 // @desc    Get current user
 // @route   GET /api/auth/me
 // @access  Private
-const getMe = async (req, res) => {
+export const getMe = async (req, res) => {
   try {
     const user = await User.findById(req.user.id)
       .populate('company')
@@ -179,7 +170,7 @@ const getMe = async (req, res) => {
 // @desc    Update user profile
 // @route   PUT /api/auth/profile
 // @access  Private
-const updateProfile = async (req, res) => {
+export const updateProfile = async (req, res) => {
   try {
     const { name, phone, bio, address, studentInfo, employerInfo } = req.body;
     
@@ -224,14 +215,12 @@ const updateProfile = async (req, res) => {
 // @desc    Change password
 // @route   PUT /api/auth/password
 // @access  Private
-const changePassword = async (req, res) => {
+export const changePassword = async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
 
-    // Find user with password
     const user = await User.findById(req.user.id).select('+password');
 
-    // Check current password
     const isMatch = await user.comparePassword(currentPassword);
     if (!isMatch) {
       return res.status(400).json({
@@ -240,7 +229,6 @@ const changePassword = async (req, res) => {
       });
     }
 
-    // Update password
     user.password = newPassword;
     await user.save();
 
@@ -257,12 +245,4 @@ const changePassword = async (req, res) => {
       error: error.message
     });
   }
-};
-
-module.exports = {
-  register,
-  login,
-  getMe,
-  updateProfile,
-  changePassword
 };

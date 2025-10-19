@@ -1,16 +1,15 @@
-const Application = require('../models/Application');
-const Job = require('../models/Job');
-const User = require('../models/User');
+import Application from '../models/Application.js';
+import Job from '../models/Job.js';
+import User from '../models/User.js';
 
 // @desc    Apply for a job
 // @route   POST /api/applications
 // @access  Private (Student)
-const applyForJob = async (req, res) => {
+export const applyForJob = async (req, res) => {
   try {
     const { jobId, coverLetter } = req.body;
     const studentId = req.user.id;
 
-    // Check if job exists and is active
     const job = await Job.findOne({ _id: jobId, isActive: true });
     if (!job) {
       return res.status(404).json({
@@ -19,7 +18,6 @@ const applyForJob = async (req, res) => {
       });
     }
 
-    // Check if application deadline has passed
     if (job.applicationDeadline && new Date() > job.applicationDeadline) {
       return res.status(400).json({
         success: false,
@@ -27,7 +25,6 @@ const applyForJob = async (req, res) => {
       });
     }
 
-    // Check if user has already applied
     const existingApplication = await Application.findOne({
       job: jobId,
       applicant: studentId
@@ -40,7 +37,6 @@ const applyForJob = async (req, res) => {
       });
     }
 
-    // Create application
     const application = await Application.create({
       job: jobId,
       applicant: studentId,
@@ -48,7 +44,6 @@ const applyForJob = async (req, res) => {
       appliedAt: new Date()
     });
 
-    // Populate application data for response
     await application.populate('job', 'title company');
     await application.populate('applicant', 'name email phone');
 
@@ -71,15 +66,13 @@ const applyForJob = async (req, res) => {
 // @desc    Get student's applications
 // @route   GET /api/applications/student/my-applications
 // @access  Private (Student)
-const getStudentApplications = async (req, res) => {
+export const getStudentApplications = async (req, res) => {
   try {
     const { page = 1, limit = 10, status } = req.query;
     const studentId = req.user.id;
 
     const filter = { applicant: studentId };
-    if (status) {
-      filter.status = status;
-    }
+    if (status) filter.status = status;
 
     const applications = await Application.find(filter)
       .populate({
@@ -121,28 +114,20 @@ const getStudentApplications = async (req, res) => {
 // @desc    Get applications for employer's jobs
 // @route   GET /api/applications/employer/job-applications
 // @access  Private (Employer)
-const getEmployerApplications = async (req, res) => {
+export const getEmployerApplications = async (req, res) => {
   try {
     const { page = 1, limit = 10, jobId, status, sortBy = 'appliedAt', sortOrder = 'desc' } = req.query;
     const employerId = req.user.id;
 
-    // Build filter for employer's jobs
     const jobFilter = { employer: employerId };
-    if (jobId) {
-      jobFilter._id = jobId;
-    }
+    if (jobId) jobFilter._id = jobId;
 
-    // Get employer's job IDs
     const employerJobs = await Job.find(jobFilter).select('_id');
     const jobIds = employerJobs.map(job => job._id);
 
-    // Build application filter
     const applicationFilter = { job: { $in: jobIds } };
-    if (status) {
-      applicationFilter.status = status;
-    }
+    if (status) applicationFilter.status = status;
 
-    // Sort options
     const sortOptions = {};
     sortOptions[sortBy] = sortOrder === 'desc' ? -1 : 1;
 
@@ -187,16 +172,13 @@ const getEmployerApplications = async (req, res) => {
 // @desc    Update application status
 // @route   PUT /api/applications/:id/status
 // @access  Private (Employer)
-const updateApplicationStatus = async (req, res) => {
+export const updateApplicationStatus = async (req, res) => {
   try {
     const { status, notes, interviewDate, interviewLocation } = req.body;
     const employerId = req.user.id;
 
     const application = await Application.findById(req.params.id)
-      .populate({
-        path: 'job',
-        select: 'employer'
-      });
+      .populate({ path: 'job', select: 'employer' });
 
     if (!application) {
       return res.status(404).json({
@@ -205,7 +187,6 @@ const updateApplicationStatus = async (req, res) => {
       });
     }
 
-    // Check if employer owns the job
     if (application.job.employer.toString() !== employerId) {
       return res.status(403).json({
         success: false,
@@ -214,12 +195,10 @@ const updateApplicationStatus = async (req, res) => {
     }
 
     const updateData = { status };
-    
     if (notes !== undefined) updateData.notes = notes;
     if (interviewDate !== undefined) updateData.interviewDate = interviewDate;
     if (interviewLocation !== undefined) updateData.interviewLocation = interviewLocation;
-    
-    // Set reviewed timestamp if status is being changed from pending
+
     if (application.status === 'pending' && status !== 'pending') {
       updateData.reviewedAt = new Date();
       updateData.reviewedBy = employerId;
@@ -252,15 +231,13 @@ const updateApplicationStatus = async (req, res) => {
 // @desc    Get application statistics for employer
 // @route   GET /api/applications/employer/statistics
 // @access  Private (Employer)
-const getApplicationStatistics = async (req, res) => {
+export const getApplicationStatistics = async (req, res) => {
   try {
     const employerId = req.user.id;
 
-    // Get employer's job IDs
     const employerJobs = await Job.find({ employer: employerId }).select('_id');
     const jobIds = employerJobs.map(job => job._id);
 
-    // Get application statistics
     const stats = await Application.aggregate([
       { $match: { job: { $in: jobIds } } },
       {
@@ -271,10 +248,7 @@ const getApplicationStatistics = async (req, res) => {
       }
     ]);
 
-    // Get total applications and recent applications (last 7 days)
-    const totalApplications = await Application.countDocuments({ 
-      job: { $in: jobIds } 
-    });
+    const totalApplications = await Application.countDocuments({ job: { $in: jobIds } });
 
     const oneWeekAgo = new Date();
     oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
@@ -284,7 +258,6 @@ const getApplicationStatistics = async (req, res) => {
       appliedAt: { $gte: oneWeekAgo }
     });
 
-    // Format statistics
     const statistics = {
       total: totalApplications,
       recent: recentApplications,
@@ -313,7 +286,7 @@ const getApplicationStatistics = async (req, res) => {
 // @desc    Withdraw application
 // @route   DELETE /api/applications/:id
 // @access  Private (Student)
-const withdrawApplication = async (req, res) => {
+export const withdrawApplication = async (req, res) => {
   try {
     const studentId = req.user.id;
     const applicationId = req.params.id;
@@ -330,7 +303,6 @@ const withdrawApplication = async (req, res) => {
       });
     }
 
-    // Check if application can be withdrawn (only pending or reviewed status)
     if (['shortlisted', 'accepted'].includes(application.status)) {
       return res.status(400).json({
         success: false,
@@ -353,13 +325,4 @@ const withdrawApplication = async (req, res) => {
       error: error.message
     });
   }
-};
-
-module.exports = {
-  applyForJob,
-  getStudentApplications,
-  getEmployerApplications,
-  updateApplicationStatus,
-  getApplicationStatistics,
-  withdrawApplication
 };
