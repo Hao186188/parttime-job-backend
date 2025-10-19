@@ -1,4 +1,4 @@
-const express = require('express');
+import express from 'express';
 const { body } = require('express-validator');
 const {
   register,
@@ -73,4 +73,4 @@ router.get('/me', auth, getMe);
 router.put('/profile', auth, updateProfileValidation, handleValidationErrors, updateProfile);
 router.put('/password', auth, changePasswordValidation, handleValidationErrors, changePassword);
 
-module.exports = router;
+export default router;

@@ -1,4 +1,4 @@
-const express = require('express');
+import express from 'express';
 const { body } = require('express-validator');
 const {
   getJobs,
@@ -52,4 +52,4 @@ router.post('/', employerAuth, createJobValidation, handleValidationErrors, crea
 router.put('/:id', employerAuth, createJobValidation, handleValidationErrors, updateJob);
 router.delete('/:id', employerAuth, deleteJob);
 
-module.exports = router;
+export default router;

@@ -1,4 +1,4 @@
-const express = require('express');
+import express from 'express';
 const { body } = require('express-validator');
 const {
   getUserProfile,
@@ -57,4 +57,4 @@ router.delete('/saved-jobs/:jobId', studentAuth, removeSavedJob);
 router.get('/recommended-jobs', studentAuth, getRecommendedJobs);
 router.post('/upload-resume', studentAuth, resumeUpload.single('resume'), uploadResume);
 
-module.exports = router;
+export default router;

@@ -1,4 +1,4 @@
-const express = require('express');
+import express from 'express';
 const { body } = require('express-validator');
 const {
   applyForJob,
@@ -46,4 +46,4 @@ router.get('/employer/job-applications', employerAuth, getEmployerApplications);
 router.get('/employer/statistics', employerAuth, getApplicationStatistics);
 router.put('/:id/status', employerAuth, updateStatusValidation, handleValidationErrors, updateApplicationStatus);
 
-module.exports = router;
+export default router;
