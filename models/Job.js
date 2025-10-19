@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const jobSchema = new mongoose.Schema({
   title: {
@@ -24,12 +24,8 @@ const jobSchema = new mongoose.Schema({
     type: String,
     required: [true, 'Salary information is required']
   },
-  salaryMin: {
-    type: Number
-  },
-  salaryMax: {
-    type: Number
-  },
+  salaryMin: Number,
+  salaryMax: Number,
   salaryType: {
     type: String,
     enum: ['hourly', 'daily', 'monthly', 'project'],
@@ -67,15 +63,9 @@ const jobSchema = new mongoose.Schema({
     type: String,
     required: true
   },
-  contactPhone: {
-    type: String
-  },
-  applicationDeadline: {
-    type: Date
-  },
-  workHours: {
-    type: String
-  },
+  contactPhone: String,
+  applicationDeadline: Date,
+  workHours: String,
   vacancies: {
     type: Number,
     default: 1,
@@ -109,29 +99,28 @@ const jobSchema = new mongoose.Schema({
     type: Number,
     default: 0
   }
-}, {
-  timestamps: true
-});
+}, { timestamps: true });
 
-// Index for search functionality
+// 🔍 Tạo index để hỗ trợ tìm kiếm
 jobSchema.index({
   title: 'text',
   description: 'text',
   requirements: 'text'
 });
 
-// Virtual for checking if job is expired
-jobSchema.virtual('isExpired').get(function() {
+// ⚙️ Virtual: kiểm tra hết hạn
+jobSchema.virtual('isExpired').get(function () {
   if (!this.applicationDeadline) return false;
   return new Date() > this.applicationDeadline;
 });
 
-// Update application count
-jobSchema.methods.updateApplicationCount = async function() {
+// 📊 Cập nhật số lượng ứng tuyển
+jobSchema.methods.updateApplicationCount = async function () {
   const Application = mongoose.model('Application');
   const count = await Application.countDocuments({ job: this._id });
   this.applicationCount = count;
   await this.save();
 };
 
-module.exports = mongoose.model('Job', jobSchema);
+const Job = mongoose.model('Job', jobSchema);
+export default Job;

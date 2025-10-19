@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const applicationSchema = new mongoose.Schema({
   job: {
@@ -15,9 +15,7 @@ const applicationSchema = new mongoose.Schema({
     type: String,
     maxlength: [1000, 'Cover letter cannot be more than 1000 characters']
   },
-  resume: {
-    type: String
-  },
+  resume: String,
   status: {
     type: String,
     enum: ['pending', 'reviewed', 'shortlisted', 'rejected', 'accepted'],
@@ -27,9 +25,7 @@ const applicationSchema = new mongoose.Schema({
     type: Date,
     default: Date.now
   },
-  reviewedAt: {
-    type: Date
-  },
+  reviewedAt: Date,
   reviewedBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
@@ -38,33 +34,28 @@ const applicationSchema = new mongoose.Schema({
     type: String,
     maxlength: [500, 'Notes cannot be more than 500 characters']
   },
-  interviewDate: {
-    type: Date
-  },
-  interviewLocation: {
-    type: String
-  }
-}, {
-  timestamps: true
-});
+  interviewDate: Date,
+  interviewLocation: String
+}, { timestamps: true });
 
-// Prevent duplicate applications
+// 🧩 Ngăn ứng viên nộp 2 lần cho 1 job
 applicationSchema.index({ job: 1, applicant: 1 }, { unique: true });
 
-// Update job application count when application is saved
-applicationSchema.post('save', async function() {
+// 📈 Tự động tăng số lượng ứng tuyển khi có ứng viên mới
+applicationSchema.post('save', async function () {
   const Job = mongoose.model('Job');
-  await Job.findByIdAndUpdate(this.job, { 
-    $inc: { applicationCount: 1 } 
+  await Job.findByIdAndUpdate(this.job, {
+    $inc: { applicationCount: 1 }
   });
 });
 
-// Update job application count when application is removed
-applicationSchema.post('remove', async function() {
+// 📉 Giảm khi ứng viên rút đơn
+applicationSchema.post('remove', async function () {
   const Job = mongoose.model('Job');
-  await Job.findByIdAndUpdate(this.job, { 
-    $inc: { applicationCount: -1 } 
+  await Job.findByIdAndUpdate(this.job, {
+    $inc: { applicationCount: -1 }
   });
 });
 
-module.exports = mongoose.model('Application', applicationSchema);
+const Application = mongoose.model('Application', applicationSchema);
+export default Application;

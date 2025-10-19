@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const companySchema = new mongoose.Schema({
   name: {
@@ -11,12 +11,8 @@ const companySchema = new mongoose.Schema({
     type: String,
     maxlength: [2000, 'Description cannot be more than 2000 characters']
   },
-  logo: {
-    type: String
-  },
-  coverImage: {
-    type: String
-  },
+  logo: String,
+  coverImage: String,
   website: {
     type: String,
     match: [/^https?:\/\/.+/, 'Please enter a valid website URL']
@@ -42,9 +38,7 @@ const companySchema = new mongoose.Schema({
     type: String,
     required: true
   },
-  district: {
-    type: String
-  },
+  district: String,
   phone: {
     type: String,
     match: [/^(03|05|07|08|09|01[2|6|8|9])+([0-9]{8})\b$/, 'Please enter a valid Vietnamese phone number']
@@ -76,16 +70,15 @@ const companySchema = new mongoose.Schema({
     type: Number,
     default: 0
   }
-}, {
-  timestamps: true
-});
+}, { timestamps: true });
 
-// Update job count when jobs are added/removed
-companySchema.methods.updateJobCount = async function() {
+// 📊 Cập nhật số lượng công việc khi có thay đổi
+companySchema.methods.updateJobCount = async function () {
   const Job = mongoose.model('Job');
   const count = await Job.countDocuments({ company: this._id, isActive: true });
   this.jobCount = count;
   await this.save();
 };
 
-module.exports = mongoose.model('Company', companySchema);
+const Company = mongoose.model('Company', companySchema);
+export default Company;
