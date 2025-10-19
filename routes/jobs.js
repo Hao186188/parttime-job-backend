@@ -1,6 +1,6 @@
 import express from 'express';
-const { body } = require('express-validator');
-const {
+import { body } from 'express-validator';
+import {
   getJobs,
   getJob,
   createJob,
@@ -8,9 +8,9 @@ const {
   deleteJob,
   getEmployerJobs,
   getFeaturedJobs
-} = require('../controllers/jobController');
-const { auth, employerAuth, optionalAuth } = require('../middleware/auth');
-const { handleValidationErrors } = require('../middleware/validation');
+} from '../controllers/jobController.js';
+import { auth, employerAuth, optionalAuth } from '../middleware/auth.js';
+import { handleValidationErrors } from '../middleware/validation.js';
 
 const router = express.Router();
 

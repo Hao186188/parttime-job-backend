@@ -1,15 +1,15 @@
 import express from 'express';
-const { body } = require('express-validator');
-const {
+import { body } from 'express-validator';
+import {
   applyForJob,
   getStudentApplications,
   getEmployerApplications,
   updateApplicationStatus,
   getApplicationStatistics,
   withdrawApplication
-} = require('../controllers/applicationController');
-const { auth, employerAuth, studentAuth } = require('../middleware/auth');
-const { handleValidationErrors } = require('../middleware/validation');
+} from '../controllers/applicationController.js';
+import { auth, employerAuth, studentAuth } from '../middleware/auth.js';
+import { handleValidationErrors } from '../middleware/validation.js';
 
 const router = express.Router();
 

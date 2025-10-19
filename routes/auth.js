@@ -1,14 +1,14 @@
 import express from 'express';
-const { body } = require('express-validator');
-const {
+import { body } from 'express-validator';
+import {
   register,
   login,
   getMe,
   updateProfile,
   changePassword
-} = require('../controllers/authController');
-const { auth } = require('../middleware/auth');
-const { handleValidationErrors } = require('../middleware/validation');
+} from '../controllers/authController.js';
+import { auth } from '../middleware/auth.js';
+import { handleValidationErrors } from '../middleware/validation.js';
 
 const router = express.Router();
 

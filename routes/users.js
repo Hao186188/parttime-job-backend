@@ -1,6 +1,6 @@
 import express from 'express';
-const { body } = require('express-validator');
-const {
+import { body } from 'express-validator';
+import {
   getUserProfile,
   updateUserProfile,
   uploadResume,
@@ -9,10 +9,10 @@ const {
   saveJob,
   removeSavedJob,
   getRecommendedJobs
-} = require('../controllers/userController');
-const { auth, studentAuth } = require('../middleware/auth');
-const { handleValidationErrors } = require('../middleware/validation');
-const { uploadResume: resumeUpload, uploadAvatar: avatarUpload } = require('../utils/upload');
+} from '../controllers/userController.js';
+import { auth, studentAuth } from '../middleware/auth.js';
+import { handleValidationErrors } from '../middleware/validation.js';
+import { uploadResume as resumeUpload, uploadAvatar as avatarUpload } from '../utils/upload.js';
 
 const router = express.Router();
 
