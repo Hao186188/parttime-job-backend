@@ -1,10 +1,10 @@
-const jwt = require('jsonwebtoken');
-const User = require('../models/User');
+import jwt from 'jsonwebtoken';
+import User from '../models/User.js';
 
-const auth = async (req, res, next) => {
+export const auth = async (req, res, next) => {
   try {
     const token = req.header('Authorization')?.replace('Bearer ', '');
-    
+
     if (!token) {
       return res.status(401).json({
         success: false,
@@ -14,7 +14,7 @@ const auth = async (req, res, next) => {
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret');
     const user = await User.findById(decoded.id).select('-password');
-    
+
     if (!user) {
       return res.status(401).json({
         success: false,
@@ -40,10 +40,10 @@ const auth = async (req, res, next) => {
   }
 };
 
-const optionalAuth = async (req, res, next) => {
+export const optionalAuth = async (req, res, next) => {
   try {
     const token = req.header('Authorization')?.replace('Bearer ', '');
-    
+
     if (token) {
       const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret');
       const user = await User.findById(decoded.id).select('-password');
@@ -51,15 +51,14 @@ const optionalAuth = async (req, res, next) => {
         req.user = user;
       }
     }
-    
+
     next();
   } catch (error) {
-    // Continue without user if token is invalid
-    next();
+    next(); // tiếp tục ngay cả khi token sai
   }
 };
 
-const employerAuth = async (req, res, next) => {
+export const employerAuth = async (req, res, next) => {
   try {
     await auth(req, res, () => {
       if (req.user.userType !== 'employer') {
@@ -78,7 +77,7 @@ const employerAuth = async (req, res, next) => {
   }
 };
 
-const studentAuth = async (req, res, next) => {
+export const studentAuth = async (req, res, next) => {
   try {
     await auth(req, res, () => {
       if (req.user.userType !== 'student') {
@@ -95,11 +94,4 @@ const studentAuth = async (req, res, next) => {
       message: 'Authentication failed'
     });
   }
-};
-
-module.exports = {
-  auth,
-  optionalAuth,
-  employerAuth,
-  studentAuth
 };
