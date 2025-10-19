@@ -1,6 +1,6 @@
-const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
 
 // Ensure upload directories exist
 const createUploadDirs = () => {
@@ -20,7 +20,7 @@ const avatarStorage = multer.diskStorage({
     cb(null, 'uploads/avatars/');
   },
   filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
     cb(null, 'avatar-' + uniqueSuffix + path.extname(file.originalname));
   }
 });
@@ -31,7 +31,7 @@ const resumeStorage = multer.diskStorage({
     cb(null, 'uploads/resumes/');
   },
   filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
     cb(null, 'resume-' + uniqueSuffix + path.extname(file.originalname));
   }
 });
@@ -42,23 +42,20 @@ const companyStorage = multer.diskStorage({
     cb(null, 'uploads/company/');
   },
   filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
     cb(null, 'company-' + uniqueSuffix + path.extname(file.originalname));
   }
 });
 
 // File filter
 const fileFilter = (req, file, cb) => {
-  // Check file type
   if (file.mimetype.startsWith('image/')) {
-    // For images
-    if (file.mimetype === 'image/jpeg' || file.mimetype === 'image/jpg' || file.mimetype === 'image/png') {
+    if (['image/jpeg', 'image/jpg', 'image/png'].includes(file.mimetype)) {
       cb(null, true);
     } else {
       cb(new Error('Only JPEG, JPG, and PNG images are allowed'), false);
     }
   } else if (file.mimetype === 'application/pdf') {
-    // For PDFs (resumes)
     cb(null, true);
   } else {
     cb(new Error('Unsupported file type'), false);
@@ -66,15 +63,13 @@ const fileFilter = (req, file, cb) => {
 };
 
 // Create multer instances
-const uploadAvatar = multer({
+export const uploadAvatar = multer({
   storage: avatarStorage,
   fileFilter,
-  limits: {
-    fileSize: 5 * 1024 * 1024 // 5MB limit
-  }
+  limits: { fileSize: 5 * 1024 * 1024 } // 5MB
 });
 
-const uploadResume = multer({
+export const uploadResume = multer({
   storage: resumeStorage,
   fileFilter: (req, file, cb) => {
     if (file.mimetype === 'application/pdf') {
@@ -83,21 +78,11 @@ const uploadResume = multer({
       cb(new Error('Only PDF files are allowed for resumes'), false);
     }
   },
-  limits: {
-    fileSize: 10 * 1024 * 1024 // 10MB limit
-  }
+  limits: { fileSize: 10 * 1024 * 1024 } // 10MB
 });
 
-const uploadCompany = multer({
+export const uploadCompany = multer({
   storage: companyStorage,
   fileFilter,
-  limits: {
-    fileSize: 5 * 1024 * 1024 // 5MB limit
-  }
+  limits: { fileSize: 5 * 1024 * 1024 } // 5MB
 });
-
-module.exports = {
-  uploadAvatar,
-  uploadResume,
-  uploadCompany
-};
