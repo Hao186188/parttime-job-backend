@@ -1,6 +1,7 @@
 import Job from '../models/Job.js';
 import Company from '../models/Company.js';
 import Application from '../models/Application.js';
+import User from '../models/User.js';
 
 // @desc    Get all jobs with filters
 // @route   GET /api/jobs
@@ -18,6 +19,8 @@ export const getJobs = async (req, res) => {
       sortBy = 'createdAt',
       sortOrder = 'desc'
     } = req.query;
+
+    console.log('🔍 Get jobs query:', req.query);
 
     const filter = { isActive: true };
 
@@ -44,6 +47,8 @@ export const getJobs = async (req, res) => {
 
     const total = await Job.countDocuments(filter);
 
+    console.log(`✅ Found ${jobs.length} jobs out of ${total} total`);
+
     res.json({
       success: true,
       data: {
@@ -56,11 +61,11 @@ export const getJobs = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Get jobs error:', error);
+    console.error('❌ Get jobs error:', error);
     res.status(500).json({
       success: false,
-      message: 'Server error',
-      error: error.message
+      message: 'Server error while fetching jobs',
+      error: process.env.NODE_ENV === 'production' ? {} : error.message
     });
   }
 };
@@ -70,58 +75,163 @@ export const getJobs = async (req, res) => {
 // @access  Public
 export const getJob = async (req, res) => {
   try {
+    console.log('🔍 Get job by ID:', req.params.id);
+    
     const job = await Job.findById(req.params.id)
       .populate('company')
       .populate('employer', 'name email phone');
 
-    if (!job)
+    if (!job) {
+      console.log('❌ Job not found:', req.params.id);
       return res.status(404).json({
         success: false,
         message: 'Job not found'
       });
+    }
 
     job.views += 1;
     await job.save();
 
-    res.json({ success: true, data: { job } });
+    console.log('✅ Job found and view count updated');
+
+    res.json({ 
+      success: true, 
+      data: { job } 
+    });
   } catch (error) {
-    console.error('Get job error:', error);
+    console.error('❌ Get job error:', error);
     res.status(500).json({
       success: false,
-      message: 'Server error',
-      error: error.message
+      message: 'Server error while fetching job',
+      error: process.env.NODE_ENV === 'production' ? {} : error.message
     });
   }
 };
 
-// @desc    Create job
+// @desc    Create job - DEBUG VERSION
 // @route   POST /api/jobs
 // @access  Private (Employer)
 export const createJob = async (req, res) => {
   try {
+    console.log('=== JOB CREATION START ===');
+    console.log('📥 User making request:', req.user.id);
+    console.log('📦 Request body:', JSON.stringify(req.body, null, 2));
+    console.log('👤 User object:', JSON.stringify(req.user, null, 2));
+
+    // Kiểm tra và xử lý company
+    let companyId = req.user.company;
+    
+    if (!companyId) {
+      console.log('⚠️ User has no company, creating temporary company...');
+      
+      // Tạo company tạm thời từ thông tin form
+      const tempCompany = await Company.create({
+        name: req.body.company || `${req.user.name}'s Company`,
+        email: req.body.contactEmail || req.user.email,
+        phone: req.body.contactPhone || '',
+        industry: 'General',
+        size: '1-10',
+        isVerified: false
+      });
+      
+      companyId = tempCompany._id;
+      console.log('✅ Created temporary company:', companyId);
+      
+      // Cập nhật user với company mới
+      await User.findByIdAndUpdate(req.user.id, { company: companyId });
+    }
+
+    // Chuẩn bị job data với fallback values
     const jobData = {
-      ...req.body,
+      title: req.body.title,
+      company: companyId,
       employer: req.user.id,
-      company: req.user.company
+      location: req.body.location,
+      description: req.body.description,
+      jobType: req.body.jobType || 'Bán thời gian',
+      category: req.body.category || 'Khác',
+      
+      // Các trường optional với default values
+      salary: req.body.salary || 'Thương lượng',
+      requirements: req.body.requirements || '',
+      benefits: req.body.benefits || '',
+      contactEmail: req.body.contactEmail || req.user.email,
+      contactPhone: req.body.contactPhone || '',
+      workHours: req.body.workHours || 'Linh hoạt',
+      vacancies: parseInt(req.body.vacancies) || 1,
+      experience: req.body.experience || 'Không yêu cầu',
+      education: req.body.education || 'Không yêu cầu',
+      isActive: true
     };
 
+    // Xử lý deadline nếu có
+    if (req.body.applicationDeadline) {
+      jobData.applicationDeadline = new Date(req.body.applicationDeadline);
+    }
+
+    console.log('🛠️ Final job data before creation:', JSON.stringify(jobData, null, 2));
+
+    // Tạo job
     const job = await Job.create(jobData);
 
-    await Company.findByIdAndUpdate(req.user.company, {
+    console.log('✅ Job created successfully:', job._id);
+
+    // Update company job count
+    await Company.findByIdAndUpdate(companyId, {
       $inc: { jobCount: 1 }
     });
+
+    // Populate job để trả về thông tin đầy đủ
+    const populatedJob = await Job.findById(job._id)
+      .populate('company', 'name email industry')
+      .populate('employer', 'name email');
+
+    console.log('=== JOB CREATION COMPLETE ===');
 
     res.status(201).json({
       success: true,
       message: 'Job created successfully',
-      data: { job }
+      data: { job: populatedJob }
     });
+
   } catch (error) {
-    console.error('Create job error:', error);
+    console.error('❌ CREATE JOB ERROR:', error);
+    
+    // Log chi tiết lỗi validation
+    if (error.name === 'ValidationError') {
+      const validationErrors = Object.values(error.errors).map(e => ({
+        field: e.path,
+        message: e.message
+      }));
+      console.log('📋 Validation errors:', validationErrors);
+      
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: validationErrors
+      });
+    }
+
+    // Lỗi duplicate key
+    if (error.code === 11000) {
+      return res.status(400).json({
+        success: false,
+        message: 'Job with similar details already exists'
+      });
+    }
+
+    // Lỗi MongoDB connection
+    if (error.name === 'MongoNetworkError' || error.name === 'MongoTimeoutError') {
+      return res.status(500).json({
+        success: false,
+        message: 'Database connection error'
+      });
+    }
+
     res.status(500).json({
       success: false,
-      message: 'Server error',
-      error: error.message
+      message: 'Server error while creating job',
+      error: process.env.NODE_ENV === 'production' ? 'Internal server error' : error.message
     });
   }
 };
@@ -131,19 +241,38 @@ export const createJob = async (req, res) => {
 // @access  Private (Employer)
 export const updateJob = async (req, res) => {
   try {
+    console.log('🔧 Update job request:', req.params.id);
+    console.log('📦 Update data:', req.body);
+
     let job = await Job.findById(req.params.id);
-    if (!job)
-      return res.status(404).json({ success: false, message: 'Job not found' });
+    
+    if (!job) {
+      console.log('❌ Job not found for update:', req.params.id);
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Job not found' 
+      });
+    }
 
-    if (job.employer.toString() !== req.user.id)
-      return res
-        .status(403)
-        .json({ success: false, message: 'Not authorized to update this job' });
+    // Kiểm tra quyền sở hữu
+    if (job.employer.toString() !== req.user.id) {
+      console.log('🚫 Unauthorized update attempt by user:', req.user.id);
+      return res.status(403).json({ 
+        success: false, 
+        message: 'Not authorized to update this job' 
+      });
+    }
 
-    job = await Job.findByIdAndUpdate(req.params.id, req.body, {
-      new: true,
-      runValidators: true
-    }).populate('company');
+    job = await Job.findByIdAndUpdate(
+      req.params.id, 
+      req.body, 
+      {
+        new: true,
+        runValidators: true
+      }
+    ).populate('company');
+
+    console.log('✅ Job updated successfully:', req.params.id);
 
     res.json({
       success: true,
@@ -151,11 +280,11 @@ export const updateJob = async (req, res) => {
       data: { job }
     });
   } catch (error) {
-    console.error('Update job error:', error);
+    console.error('❌ Update job error:', error);
     res.status(500).json({
       success: false,
-      message: 'Server error',
-      error: error.message
+      message: 'Server error while updating job',
+      error: process.env.NODE_ENV === 'production' ? {} : error.message
     });
   }
 };
@@ -165,28 +294,46 @@ export const updateJob = async (req, res) => {
 // @access  Private (Employer)
 export const deleteJob = async (req, res) => {
   try {
-    const job = await Job.findById(req.params.id);
-    if (!job)
-      return res.status(404).json({ success: false, message: 'Job not found' });
+    console.log('🗑️ Delete job request:', req.params.id);
 
-    if (job.employer.toString() !== req.user.id)
-      return res
-        .status(403)
-        .json({ success: false, message: 'Not authorized to delete this job' });
+    const job = await Job.findById(req.params.id);
+    
+    if (!job) {
+      console.log('❌ Job not found for deletion:', req.params.id);
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Job not found' 
+      });
+    }
+
+    // Kiểm tra quyền sở hữu
+    if (job.employer.toString() !== req.user.id) {
+      console.log('🚫 Unauthorized deletion attempt by user:', req.user.id);
+      return res.status(403).json({ 
+        success: false, 
+        message: 'Not authorized to delete this job' 
+      });
+    }
 
     await Job.findByIdAndDelete(req.params.id);
 
-    await Company.findByIdAndUpdate(req.user.company, {
+    // Update company job count
+    await Company.findByIdAndUpdate(job.company, {
       $inc: { jobCount: -1 }
     });
 
-    res.json({ success: true, message: 'Job deleted successfully' });
+    console.log('✅ Job deleted successfully:', req.params.id);
+
+    res.json({ 
+      success: true, 
+      message: 'Job deleted successfully' 
+    });
   } catch (error) {
-    console.error('Delete job error:', error);
+    console.error('❌ Delete job error:', error);
     res.status(500).json({
       success: false,
-      message: 'Server error',
-      error: error.message
+      message: 'Server error while deleting job',
+      error: process.env.NODE_ENV === 'production' ? {} : error.message
     });
   }
 };
@@ -197,7 +344,12 @@ export const deleteJob = async (req, res) => {
 export const getEmployerJobs = async (req, res) => {
   try {
     const { page = 1, limit = 10, status = 'all' } = req.query;
+    
+    console.log('👨‍💼 Get employer jobs for user:', req.user.id);
+    console.log('📋 Query params:', { page, limit, status });
+
     const filter = { employer: req.user.id };
+    
     if (status === 'active') filter.isActive = true;
     else if (status === 'inactive') filter.isActive = false;
 
@@ -209,15 +361,24 @@ export const getEmployerJobs = async (req, res) => {
 
     const total = await Job.countDocuments(filter);
 
+    console.log(`📊 Found ${jobs.length} jobs for employer`);
+
+    // Lấy thống kê applications cho mỗi job
     const jobsWithStats = await Promise.all(
       jobs.map(async (job) => {
         const stats = await Application.aggregate([
           { $match: { job: job._id } },
           { $group: { _id: '$status', count: { $sum: 1 } } }
         ]);
+        
         const statsObj = {};
         stats.forEach((stat) => (statsObj[stat._id] = stat.count));
-        return { ...job.toObject(), applicationStats: statsObj };
+        
+        return { 
+          ...job.toObject(), 
+          applicationStats: statsObj,
+          applicationCount: stats.reduce((sum, stat) => sum + stat.count, 0)
+        };
       })
     );
 
@@ -233,11 +394,11 @@ export const getEmployerJobs = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Get employer jobs error:', error);
+    console.error('❌ Get employer jobs error:', error);
     res.status(500).json({
       success: false,
-      message: 'Server error',
-      error: error.message
+      message: 'Server error while fetching employer jobs',
+      error: process.env.NODE_ENV === 'production' ? {} : error.message
     });
   }
 };
@@ -247,18 +408,28 @@ export const getEmployerJobs = async (req, res) => {
 // @access  Public
 export const getFeaturedJobs = async (req, res) => {
   try {
-    const jobs = await Job.find({ isFeatured: true, isActive: true })
+    console.log('⭐ Get featured jobs request');
+    
+    const jobs = await Job.find({ 
+      isFeatured: true, 
+      isActive: true 
+    })
       .populate('company', 'name logo industry')
       .sort({ createdAt: -1 })
       .limit(6);
 
-    res.json({ success: true, data: { jobs } });
+    console.log(`✅ Found ${jobs.length} featured jobs`);
+
+    res.json({ 
+      success: true, 
+      data: { jobs } 
+    });
   } catch (error) {
-    console.error('Get featured jobs error:', error);
+    console.error('❌ Get featured jobs error:', error);
     res.status(500).json({
       success: false,
-      message: 'Server error',
-      error: error.message
+      message: 'Server error while fetching featured jobs',
+      error: process.env.NODE_ENV === 'production' ? {} : error.message
     });
   }
 };

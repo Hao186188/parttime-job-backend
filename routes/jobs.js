@@ -14,7 +14,7 @@ import { handleValidationErrors } from '../middleware/validation.js';
 
 const router = express.Router();
 
-// Validation rules
+// Validation rules - LINH HOẠT HƠN
 const createJobValidation = [
   body('title')
     .trim()
@@ -22,11 +22,8 @@ const createJobValidation = [
     .withMessage('Title must be between 5 and 100 characters'),
   body('description')
     .trim()
-    .isLength({ min: 50, max: 2000 })
-    .withMessage('Description must be between 50 and 2000 characters'),
-  body('salary')
-    .notEmpty()
-    .withMessage('Salary information is required'),
+    .isLength({ min: 10, max: 5000 }) // Giảm min length, tăng max
+    .withMessage('Description must be between 10 and 5000 characters'),
   body('location')
     .notEmpty()
     .withMessage('Location is required'),
@@ -35,10 +32,8 @@ const createJobValidation = [
     .withMessage('Invalid job type'),
   body('category')
     .isIn(['Phục vụ', 'Bán hàng', 'Gia sư', 'Công nghệ', 'Giao hàng', 'Văn phòng', 'Khác'])
-    .withMessage('Invalid category'),
-  body('contactEmail')
-    .isEmail()
-    .withMessage('Please enter a valid contact email')
+    .withMessage('Invalid category')
+  // BỎ required cho salary và contactEmail để linh hoạt hơn
 ];
 
 // Public routes
